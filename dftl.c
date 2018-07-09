@@ -18,8 +18,8 @@
 #include "ssd_interface.h"
 #include "disksim_global.h"
 
-
-
+int SLC_to_SLC_num=0;
+int SLC_to_MLC_num=0;
 _u32 SLC_opm_gc_cost_benefit();
 _u32 MLC_opm_gc_cost_benefit();
 
@@ -30,7 +30,7 @@ extern struct SLC_nand_blk_info *tail;
 extern int cache_cmt_hit;
 extern int cache_scmt_hit;
 extern int cache_slcmt_hit;
-
+extern int RW_flag;
 blk_t extra_blk_num;
 _u32 free_blk_no[2];
 _u32 free_SLC_blk_no[2];
@@ -42,80 +42,66 @@ _u16 free_MLC_page_no[2];
 extern int merge_switch_num;
 extern int merge_partial_num;
 extern int merge_full_num;
-extern int Cycle_N_Choice;
-
+//extern _u32 RWs,RWm;
 extern int MLC_page_num_for_2nd_map_table;
 extern int nand_SLC_page_num;
 int stat_gc_called_num;
 double total_gc_overhead_time;
 extern double delay2;
 int map_pg_read=0;
-int SLC_to_MLC_counts=0;
-int SLC_to_SLC_counts=0;
 
+/****************************
+ * 该函数输入的blk就是tail指向的尾部块
+ * 采用N次策略和延迟正常迁移策略，通过RW_flag判断
+ * @param blk
+ */
 void SLC_data_move(int blk){
      int i,valid_flag,valid_sect_num;
      int blkno,bcount;
      double delay3;
      _u32 victim_blkno;
      _u32 copy_lsn[S_SECT_NUM_PER_PAGE];
-//    这里添加N次循环策略的机会
-
 
      for(i=0;i<S_PAGE_NUM_PER_BLK;i++){
          valid_flag=SLC_nand_oob_read(S_SECTOR(blk,i*S_SECT_NUM_PER_PAGE));
          if(valid_flag==1){
-            valid_sect_num=SLC_nand_page_read(S_SECTOR(blk,i*S_SECT_NUM_PER_PAGE),copy_lsn,1);
-            ASSERT(valid_sect_num==4);
-            SLC_opagemap[S_BLK_PAGE_NO_SECT(copy_lsn[0])].ppn=-1;
-            blkno=(S_BLK_PAGE_NO_SECT(copy_lsn[0])*4)/8;
-            blkno*=8;
-            bcount=8;
-            delay3=callFsim(blkno,bcount,0,1);
-            SLC_to_MLC_counts+=1;
-            delay2=delay2+delay3;
-         }
-       
-     }
-     victim_blkno=blk; 
-     SLC_nand_erase(victim_blkno);    
-}
-
-
-void ADFTL_SLC_data_move(int blk){
-    int i,valid_flag,valid_sect_num;
-    int blkno,bcount;
-    double delay3;
-    _u32 victim_blkno;
-    _u32 copy_lsn[S_SECT_NUM_PER_PAGE];
-
-    for(i=0;i<S_PAGE_NUM_PER_BLK;i++){
-        valid_flag=SLC_nand_oob_read(S_SECTOR(blk,i*S_SECT_NUM_PER_PAGE));
-        if(valid_flag==1){
-            valid_sect_num=SLC_nand_page_read(S_SECTOR(blk,i*S_SECT_NUM_PER_PAGE),copy_lsn,1);
-            ASSERT(valid_sect_num==4);
-//                 N次机制,通过SLC_opagemap[lpn].count位实现，Cycle_N_Choice的disksim_iotrace.c中的自适应磨损速率决定
-                if(SLC_opagemap[S_BLK_PAGE_NO_SECT(copy_lsn[0])].count<=Cycle_N_Choice){
-                    SLC_opagemap[S_BLK_PAGE_NO_SECT(copy_lsn[0])].ppn=S_BLK_PAGE_NO_SECT(S_SECTOR(free_SLC_blk_no[1],free_SLC_page_no[1]));
-                    SLC_nand_page_write(S_SECTOR(free_SLC_blk_no[1],free_SLC_page_no[1])&(~S_OFF_MASK_SECT),copy_lsn,1,1);
-                    free_SLC_page_no[1]+=S_SECT_NUM_PER_PAGE;
-                    SLC_opagemap[S_BLK_PAGE_NO_SECT(copy_lsn[0])].count+=1;
-                    SLC_to_SLC_counts++;
-                }else{
+             valid_sect_num=SLC_nand_page_read(S_SECTOR(blk,i*S_SECT_NUM_PER_PAGE),copy_lsn,1);
+             ASSERT(valid_sect_num==4);
+//             如果RW_flag表示SLC的磨损速率小于等于MLC，采用延迟回写策略
+             if(RW_flag==0){
+//                 N次机制,通过SLC_opagemap[lpn].count位实现，N这里为2
+                 if(SLC_opagemap[S_BLK_PAGE_NO_SECT(copy_lsn[0])].count<2){
+                     SLC_opagemap[S_BLK_PAGE_NO_SECT(copy_lsn[0])].ppn=S_BLK_PAGE_NO_SECT(S_SECTOR(free_SLC_blk_no[1],free_SLC_page_no[1]));
+                     SLC_nand_page_write(S_SECTOR(free_SLC_blk_no[1],free_SLC_page_no[1])&(~S_OFF_MASK_SECT),copy_lsn,1,1);
+                     free_SLC_page_no[1]+=S_SECT_NUM_PER_PAGE;
+                     SLC_opagemap[S_BLK_PAGE_NO_SECT(copy_lsn[0])].count+=1;
+                     SLC_to_SLC_num++;
+                 }else{
 //                     反之直接回写到MLC
-                    SLC_opagemap[S_BLK_PAGE_NO_SECT(copy_lsn[0])].ppn=-1;
-                    SLC_opagemap[S_BLK_PAGE_NO_SECT(copy_lsn[0])].count=0;
-                    blkno=(S_BLK_PAGE_NO_SECT(copy_lsn[0])*4)/8;
-                    blkno*=8;
-                    bcount=8;
-                    SLC_to_MLC_counts++;
-                    delay3=callFsim(blkno,bcount,0,1);
-                    delay2=delay2+delay3;
-                }
-        }
-    }
-    victim_blkno=blk;
-    SLC_nand_erase(victim_blkno);
+                     SLC_opagemap[S_BLK_PAGE_NO_SECT(copy_lsn[0])].ppn=-1;
+                     SLC_opagemap[S_BLK_PAGE_NO_SECT(copy_lsn[0])].count=0;
+                     blkno=(S_BLK_PAGE_NO_SECT(copy_lsn[0])*4)/8;
+                     blkno*=8;
+                     bcount=8;
+                     SLC_to_MLC_num++;
+                     delay3=callFsim(blkno,bcount,0,1);
+                     delay2=delay2+delay3;
+                 }
+             }else{
+//                 正常迁移策略，直接迁移到MLC中去
+                 SLC_opagemap[S_BLK_PAGE_NO_SECT(copy_lsn[0])].ppn=-1;
+                 SLC_opagemap[S_BLK_PAGE_NO_SECT(copy_lsn[0])].count=0;
+                 blkno=(S_BLK_PAGE_NO_SECT(copy_lsn[0])*4)/8;
+                 blkno*=8;
+                 bcount=8;
+                 SLC_to_MLC_num++;
+                 delay3=callFsim(blkno,bcount,0,1);
+                 delay2=delay2+delay3;
+             }
+         }
+     }
+     victim_blkno=blk;
+     SLC_nand_erase(victim_blkno);
 }
 
 _u32 SLC_opm_gc_cost_benefit()
@@ -671,18 +657,18 @@ size_t SLC_opm_write(sect_t lsn, sect_t size, int mapdir_flag)
     printf("something corrupted");
     exit(0);
   }
-
-  if (free_SLC_page_no[small] >= S_SECT_NUM_PER_BLK) 
+  
+  while (free_SLC_page_no[small] >= S_SECT_NUM_PER_BLK) 
     {
       free_SLC_page_no[small] = 0;  
       if((head-SLC_nand_blk)<4090&&(head-SLC_nand_blk)>=(tail-SLC_nand_blk))//3代表4096  5 代表8192
       {  head++;
+         free_SLC_blk_no[small]=nand_get_SLC_free_blk(0);
         // printf("进入02后的状态：%d\n",(head-tail));
          if((head-SLC_nand_blk)==4090){
             b=tail-SLC_nand_blk;
-            //SLC_data_move(b);//SLC_data_move(b);
-            ADFTL_SLC_data_move(b);
-             tail++;
+            SLC_data_move(b);//SLC_data_move(b);
+            tail++;
             printf("第2种情况：\n");
             printf("头指针＝%d\n",(head-SLC_nand_blk));
             printf("尾指针＝%d\n",(tail-SLC_nand_blk));
@@ -691,10 +677,11 @@ size_t SLC_opm_write(sect_t lsn, sect_t size, int mapdir_flag)
          printf("头指针＝%d\n",(head-SLC_nand_blk));
          printf("尾指针＝%d\n",(tail-SLC_nand_blk));
       }else if((head-SLC_nand_blk)<(tail-SLC_nand_blk)&&(head-SLC_nand_blk)<4090){
+         head++;
+				 free_SLC_blk_no[small]=nand_get_SLC_free_blk(0);
          b=tail-SLC_nand_blk;
-         //SLC_data_move(b);//SLC_data_move(b);
-          ADFTL_SLC_data_move(b);
-          head++;
+         SLC_data_move(b);//SLC_data_move(b);
+                 
          tail++;
          printf("第0种情况：\n");
          printf("头指针＝%d\n",(head-SLC_nand_blk));
@@ -707,24 +694,26 @@ size_t SLC_opm_write(sect_t lsn, sect_t size, int mapdir_flag)
               }         
       }else if((head-SLC_nand_blk)>=4090&&(head-SLC_nand_blk)<4096&&(tail-SLC_nand_blk)<=4095){
          b=tail-SLC_nand_blk;
-         //SLC_data_move(b);//SLC_data_move(b);
-          ADFTL_SLC_data_move(b);
-          head++;
-         tail++;
+         head++;
          if((head-SLC_nand_blk)==4096){
             head=&SLC_nand_blk[0];
             printf("第4种情况：\n");
             printf("头指针＝%d\n",(head-SLC_nand_blk));
             printf("尾指针＝%d\n",(tail-SLC_nand_blk));
          }
+         free_SLC_blk_no[small]=nand_get_SLC_free_blk(0);
+         SLC_data_move(b);//SLC_data_move(b);                 
+         tail++;
+         
         printf("第3种情况：\n");
         printf("头指针＝%d\n",(head-SLC_nand_blk));
         printf("尾指针＝%d\n",(tail-SLC_nand_blk)); 
        }else {
          b=tail-SLC_nand_blk;
-         //SLC_data_move(b);//SLC_data_move(b);
-          ADFTL_SLC_data_move(b);
-          head++;
+         head++;
+         free_SLC_blk_no[small]=nand_get_SLC_free_blk(0);
+         SLC_data_move(b);//SLC_data_move(b);
+         
          tail++;
          if((tail-SLC_nand_blk)==4096){
             tail=&SLC_nand_blk[0];
@@ -736,7 +725,7 @@ size_t SLC_opm_write(sect_t lsn, sect_t size, int mapdir_flag)
          printf("头指针＝%d\n",(head-SLC_nand_blk));
          printf("尾指针＝%d\n",(tail-SLC_nand_blk));         
       }                    
-      free_SLC_blk_no[small]=nand_get_SLC_free_blk(0);
+    //  free_SLC_blk_no[small]=nand_get_SLC_free_blk(0);
     /*  printf("%d\n",free_SLC_blk_no[small]);
       printf("\n");*/
   }
@@ -753,6 +742,7 @@ size_t SLC_opm_write(sect_t lsn, sect_t size, int mapdir_flag)
   ppn = s_psn / S_SECT_NUM_PER_PAGE;
   if(SLC_opagemap[lpn].ppn!=-1){
   if (SLC_opagemap[lpn].free == 0) {
+   // SLC_opagemap[lpn].count == 0;
     s_psn1 = SLC_opagemap[lpn].ppn * S_SECT_NUM_PER_PAGE;
     for(i = 0; i<S_SECT_NUM_PER_PAGE; i++){
       SLC_nand_invalidate(s_psn1 + i, s_lsn + i);
@@ -774,6 +764,7 @@ size_t SLC_opm_write(sect_t lsn, sect_t size, int mapdir_flag)
   }
   else {
     SLC_opagemap[lpn].ppn = ppn;
+		SLC_opagemap[lpn].count+=1;
   }
 
   free_SLC_page_no[small] += S_SECT_NUM_PER_PAGE;
@@ -878,10 +869,6 @@ void opm_end()
   }
   
   SLC_opagemap_num = 0;
-  if(ADFTL_Head!=NULL){
-      FreeList(ADFTL_Head);
-  }
-
 }
 
 void opagemap_reset()
@@ -907,8 +894,6 @@ int opm_init(blk_t SLC_blk_num,blk_t MLC_blk_num, blk_t extra_num )
   SLC_opagemap_num = SLC_blk_num * S_PAGE_NUM_PER_BLK;
   MLC_opagemap_num = MLC_blk_num * M_PAGE_NUM_PER_BLK;
   opagemap_num = SLC_opagemap_num + MLC_opagemap_num;
-
-
 
   //create primary mapping table
   SLC_opagemap = (struct opm_entry *) malloc(sizeof (struct opm_entry) * SLC_opagemap_num);
@@ -943,7 +928,7 @@ int opm_init(blk_t SLC_blk_num,blk_t MLC_blk_num, blk_t extra_num )
     SLC_opagemap[i].map_status = 0;
     SLC_opagemap[i].map_age = 0;
     SLC_opagemap[i].update = 0;
-    SLC_opagemap[i].count=0;
+    SLC_opagemap[i].count = 0;
   }
   for(i = 0; i<MLC_TOTAL_MAP_ENTRIES; i++){
     MLC_opagemap[i].cache_status = 0;
