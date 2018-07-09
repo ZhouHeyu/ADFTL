@@ -30,7 +30,7 @@ extern struct SLC_nand_blk_info *tail;
 extern int cache_cmt_hit;
 extern int cache_scmt_hit;
 extern int cache_slcmt_hit;
-extern int RW_flag;
+int RW_flag=0;
 blk_t extra_blk_num;
 _u32 free_blk_no[2];
 _u32 free_SLC_blk_no[2];
