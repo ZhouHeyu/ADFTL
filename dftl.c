@@ -31,6 +31,8 @@ extern int cache_cmt_hit;
 extern int cache_scmt_hit;
 extern int cache_slcmt_hit;
 int RW_flag=0;
+extern int Cycle_N_Choice;
+
 blk_t extra_blk_num;
 _u32 free_blk_no[2];
 _u32 free_SLC_blk_no[2];
@@ -70,7 +72,7 @@ void SLC_data_move(int blk){
 //             如果RW_flag表示SLC的磨损速率小于等于MLC，采用延迟回写策略
              if(RW_flag==0){
 //                 N次机制,通过SLC_opagemap[lpn].count位实现，N这里为2
-                 if(SLC_opagemap[S_BLK_PAGE_NO_SECT(copy_lsn[0])].count<2){
+                 if(SLC_opagemap[S_BLK_PAGE_NO_SECT(copy_lsn[0])].count<=Cycle_N_Choice){
                      SLC_opagemap[S_BLK_PAGE_NO_SECT(copy_lsn[0])].ppn=S_BLK_PAGE_NO_SECT(S_SECTOR(free_SLC_blk_no[1],free_SLC_page_no[1]));
                      SLC_nand_page_write(S_SECTOR(free_SLC_blk_no[1],free_SLC_page_no[1])&(~S_OFF_MASK_SECT),copy_lsn,1,1);
                      free_SLC_page_no[1]+=S_SECT_NUM_PER_PAGE;

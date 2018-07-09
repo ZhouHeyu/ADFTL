@@ -881,6 +881,8 @@ static ioreq_event * iotrace_ascii_get_ioreq_event_3(FILE *tracefile,ioreq_event
         }else if(Cycle_N_Choice<Min_Cycle_N_Choice){
             Cycle_N_Choice=Min_Cycle_N_Choice;
         }
+//        test print
+        printf("Cycle_N_Choice is %d\n",Cycle_N_Choice);
 
         sblkno=new->blkno;
         sbcount=((new->blkno+ new->bcount-1)/4 - (new->blkno)/4 + 1) * 4;
