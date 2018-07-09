@@ -15,7 +15,8 @@
 #include <string.h>
 #include "flash.h"
 #include "ssd_interface.h"
-
+extern int SLC_to_SLC_num;
+extern int SLC_to_MLC_num;
 _u32 nand_blk_num,nand_SLC_blk_num,nand_MLC_blk_num, min_fb_num;//用在opm_gc_cost_benefit()
 _u8  pb_size;
 struct nand_blk_info *nand_blk;
@@ -24,8 +25,7 @@ struct MLC_nand_blk_info *MLC_nand_blk;
 struct SLC_nand_blk_info *head;
 struct SLC_nand_blk_info *tail;
 int MIN_ERASE;
-extern int SLC_to_MLC_counts;
-extern int SLC_to_SLC_counts;
+
 /**************** NAND STAT **********************/
 void nand_stat(int option)
 { 
@@ -184,8 +184,10 @@ void nand_stat_print(FILE *outFP)
   fprintf(outFP, " MLC__GC page read (#): %8u   ", MLC_stat_gc_read_num);
   fprintf(outFP, " MLC_GC page write (#): %8u\n", MLC_stat_gc_write_num);
   fprintf(outFP, "------------------------------------------------------------\n");
-  fprintf(outFP, " SLC_to_MLC_counts (#): %8u\n", SLC_to_MLC_counts);
-  fprintf(outFP, " SLC_to_SLC_counts (#): %8u\n", SLC_to_SLC_counts);
+  fprintf(outFP, "------------------------------------------------------------\n");
+  fprintf(outFP, " SLC_to_SLC_num (#): %8u   ", SLC_to_SLC_num);
+  fprintf(outFP, " SLC_to_MLC_num (#): %8u\n", SLC_to_MLC_num);
+  fprintf(outFP, "------------------------------------------------------------\n");
 }
 
 /**************** NAND INIT **********************/
@@ -548,7 +550,7 @@ _u8 MLC_nand_page_read(_u32 psn, _u32 *lsns, _u8 isGC)
 
   ASSERT(M_OFF_F_SECT(psn) == 0);
   if(MLC_nand_blk[pbn].state.free != 0) {
-    for( i =0 ; i < 4224 ; i++){
+    for( i =0 ; i < 33792 ; i++){
       for(j =0; j < 1024;j++){
         if(MLC_nand_blk[i].sect[j].lsn == lsns[0]){
           printf("blk = %d",i);

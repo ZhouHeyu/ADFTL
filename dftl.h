@@ -38,7 +38,7 @@ struct opm_entry {
   int  map_status;
   int  map_age;
   int  update;
-  int  count;
+  int count;
 };
 
 struct omap_dir{
