@@ -111,6 +111,9 @@
  int th=5;
  int max_th=16;
  int min_th=0;
+ int Min_Cycle_N_Choice=1;
+ int Max_Cycle_N_Choice=5;
+ int Cycle_N_Choice=2;
 
  int w_size[1000];
 extern int IO_trace;
@@ -865,6 +868,19 @@ static ioreq_event * iotrace_ascii_get_ioreq_event_3(FILE *tracefile,ioreq_event
             th=max_th;
         }
         printf("th的值：%d\n ",th);
+
+//        自适应调整N次策略
+        if(Tau>1.3){
+            Cycle_N_Choice--;
+        }else if(Tau<0.7){
+            Cycle_N_Choice++;
+        }
+//       设置最大的范围取值区间
+        if(Cycle_N_Choice>Max_Cycle_N_Choice){
+            Cycle_N_Choice=Max_Cycle_N_Choice;
+        }else if(Cycle_N_Choice<Min_Cycle_N_Choice){
+            Cycle_N_Choice=Min_Cycle_N_Choice;
+        }
 
         sblkno=new->blkno;
         sbcount=((new->blkno+ new->bcount-1)/4 - (new->blkno)/4 + 1) * 4;

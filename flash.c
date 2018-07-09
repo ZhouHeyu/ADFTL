@@ -25,6 +25,7 @@ struct SLC_nand_blk_info *head;
 struct SLC_nand_blk_info *tail;
 int MIN_ERASE;
 extern int SLC_to_MLC_counts;
+extern int SLC_to_SLC_counts;
 /**************** NAND STAT **********************/
 void nand_stat(int option)
 { 
@@ -184,6 +185,7 @@ void nand_stat_print(FILE *outFP)
   fprintf(outFP, " MLC_GC page write (#): %8u\n", MLC_stat_gc_write_num);
   fprintf(outFP, "------------------------------------------------------------\n");
   fprintf(outFP, " SLC_to_MLC_counts (#): %8u\n", SLC_to_MLC_counts);
+  fprintf(outFP, " SLC_to_SLC_counts (#): %8u\n", SLC_to_SLC_counts);
 }
 
 /**************** NAND INIT **********************/
