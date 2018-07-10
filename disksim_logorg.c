@@ -109,7 +109,7 @@
 #include "disksim_ioqueue.h"
 #include "config.h"
 
-#define MAX_QUEUE_LENGTH 100000
+#define MAX_QUEUE_LENGTH 20000
 
 
 /* read-only globals used during readparams phase */
