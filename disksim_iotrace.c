@@ -870,9 +870,9 @@ static ioreq_event * iotrace_ascii_get_ioreq_event_3(FILE *tracefile,ioreq_event
         printf("th的值：%d\n ",th);
 
 //        自适应调整N次策略
-        if(Tau>1.3){
+        if(Tau>1.1){
             Cycle_N_Choice--;
-        }else if(Tau<0.7){
+        }else if(Tau<0.8){
             Cycle_N_Choice++;
         }
 //       设置最大的范围取值区间
