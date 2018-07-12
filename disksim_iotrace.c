@@ -109,7 +109,7 @@
  int sum=0;
  int w_count=0;
  int th=5;
- int max_th=16;
+ int max_th=32;
  int min_th=0;
  int Min_Cycle_N_Choice=1;
  int Max_Cycle_N_Choice=5;
